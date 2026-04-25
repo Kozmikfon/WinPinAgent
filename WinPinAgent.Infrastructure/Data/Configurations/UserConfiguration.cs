@@ -18,7 +18,7 @@ namespace WinPinAgent.Infrastructure.Data.Configurations
             builder.Property(u => u.Role).HasConversion<string>();
             // BrandExpertise listesini JSON olarak sakla
             builder.Property(u => u.BrandExpertise)
-                   .HasColumnType("jsonb");
+                    .HasColumnType("text[]");
         }
     }
 }

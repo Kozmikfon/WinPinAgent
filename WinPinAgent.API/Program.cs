@@ -1,41 +1,50 @@
+using Microsoft.EntityFrameworkCore;
+using Telegram.Bot;
+using WinPinAgent.API.Bot;
+using WinPinAgent.Application.Interfaces;
+using WinPinAgent.Application.Services;
+using WinPinAgent.Domain.Interfaces;
+using WinPinAgent.Infrastructure.Data;
+using WinPinAgent.Infrastructure.Repositories;
+using WinPinAgent.Infrastructure.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// --- Telegram Bot ---
+var botToken = builder.Configuration["TelegramBot:Token"]
+    ?? throw new InvalidOperationException("Telegram bot token bulunamadý.");
+builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
+
+// --- Veritabaný ---
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Repositories ---
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IPartRequestRepository, PartRequestRepository>();
+builder.Services.AddScoped<IOfferRepository, OfferRepository>();
+
+// --- Services ---
+builder.Services.AddScoped<IVinParserService, VinParserService>();
+builder.Services.AddScoped<IMatchmakingService, MatchmakingService>();
+builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
+
+builder.Services.AddHostedService<WinPinAgent.API.BackgroundServices.RequestExpiryService>();
+// --- Bot Update Handler ---
+builder.Services.AddScoped<BotUpdateHandler>();
+
+builder.Services.AddControllers()
+    .AddNewtonsoftJson();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// --- Migration otomatik uygula ---
+using (var scope = app.Services.CreateScope())
 {
-    app.MapOpenApi();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
 }
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+app.UseAuthorization();
+app.MapControllers();
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

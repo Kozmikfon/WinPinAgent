@@ -9,6 +9,7 @@ namespace WinPinAgent.Application.Interfaces
     public interface IMatchmakingService
     {
         Task BroadcastRequestAsync(Guid partRequestId);
-
+        Task AcceptOfferAsync(Guid partRequestId, Guid offerId);
+        Task ExpireRequestsAsync();
     }
 }

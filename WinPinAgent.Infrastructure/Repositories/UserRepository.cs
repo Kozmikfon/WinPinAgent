@@ -31,7 +31,7 @@ public class UserRepository : IUserRepository
     }
 
     public async Task<IEnumerable<User>> GetSellersByBrandAsync(string brand)
-        => await _context.Users
-            .Where(u => u.Role == UserRole.Seller && u.BrandExpertise.Contains(brand))
-            .ToListAsync();
+    => await _context.Users
+        .Where(u => u.BrandExpertise.Contains(brand))
+        .ToListAsync();
 }

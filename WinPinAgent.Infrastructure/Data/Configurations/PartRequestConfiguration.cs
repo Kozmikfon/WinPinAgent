@@ -22,6 +22,10 @@ namespace WinPinAgent.Infrastructure.Data.Configurations
             builder.HasOne(r => r.Buyer)
                    .WithMany(u => u.Requests)
                    .HasForeignKey(r => r.BuyerId);
+
+            builder.Property(r => r.Status)
+                 .HasConversion<string>()
+                 .HasMaxLength(20);
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using WinPinAgent.Domain.Entities;
+using WinPinAgent.Domain.Enums;
 using WinPinAgent.Domain.Interfaces;
 using WinPinAgent.Infrastructure.Data;
 
@@ -31,4 +32,12 @@ public class PartRequestRepository : IPartRequestRepository
         _context.PartRequests.Update(request);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<IEnumerable<PartRequest>> GetExpiredRequestsAsync()
+    => await _context.PartRequests
+        .Where(r => r.ExpiresAt < DateTime.UtcNow
+            && r.Status != RequestStatus.Accepted
+            && r.Status != RequestStatus.Closed
+            && r.Status != RequestStatus.Expired)
+        .ToListAsync();
 }

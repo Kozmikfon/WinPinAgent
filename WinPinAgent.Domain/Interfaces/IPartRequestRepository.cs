@@ -12,5 +12,7 @@ namespace WinPinAgent.Domain.Interfaces
         Task<PartRequest?> GetByIdAsync(Guid id);
         Task AddAsync(PartRequest request);
         Task UpdateAsync(PartRequest request);
+        Task<IEnumerable<PartRequest>> GetExpiredRequestsAsync();
+
     }
 }
