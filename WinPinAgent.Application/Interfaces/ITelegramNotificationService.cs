@@ -10,5 +10,6 @@ namespace WinPinAgent.Application.Interfaces
     {
         Task SendMessageAsync(long chatId, string message);
 
+
     }
 }

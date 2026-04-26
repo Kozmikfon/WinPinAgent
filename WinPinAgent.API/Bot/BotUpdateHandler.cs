@@ -6,8 +6,10 @@ using WinPinAgent.Domain.Entities;
 using WinPinAgent.Domain.Interfaces;
 using WinPinAgent.Domain.Enums;
 
+using Telegram.Bot.Types.ReplyMarkups;
+
 using DomainUser = WinPinAgent.Domain.Entities.User;
-using TelegramUser = Telegram.Bot.Types.User;
+
 
 namespace WinPinAgent.API.Bot;
 
@@ -36,60 +38,11 @@ public class BotUpdateHandler
         _offerRepo = offerRepo;
     }
 
-    public async Task HandleAsync(Update update)
-    {
-        if (update.Message is not { Text: { } text } message) return;
+    
 
-        var chatId = message.Chat.Id;
-        var args = text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var command = args[0].ToLower();
+    
 
-        switch (command)
-        {
-            case "/start":
-                await HandleStartAsync(chatId, message.From);
-                break;
-            case "/kayit_alici":
-                await HandleRegisterBuyerAsync(chatId, message.From);
-                break;
-            case "/kayit_satici":
-                await HandleRegisterSellerAsync(chatId, args, message.From);
-                break;
-            case "/talep":
-                await HandlePartRequestAsync(chatId, args);
-                break;
-            case "/teklif":
-                await HandleOfferAsync(chatId, args);
-                break;
-
-            case "/teklifler":
-                await HandleListOffersAsync(chatId, args);
-                break;
-
-            case "/kabul":
-                await HandleAcceptOfferAsync(chatId, args);
-                break;
-
-            default:
-                await _botClient.SendMessage(chatId,
-                    "Geçersiz komut. Kullanılabilir komutlar:\n" +
-                    "/kayit_alici — Alıcı olarak kaydol\n" +
-                    "/kayit_satici [MARKA1] [MARKA2] — Satıcı olarak kaydol\n" +
-                    "/talep [VIN] [PARÇA_ADI] — Parça talebi oluştur\n" +
-                    "/teklif [TALEP_ID] [FİYAT] [STOK] — Teklif ver");
-                break;
-        }
-    }
-
-    private async Task HandleStartAsync(long chatId, TelegramUser? from)
-    {
-        await _botClient.SendMessage(chatId,
-            "👋 WinPin'e hoş geldiniz!\n\n" +
-            "Alıcıysanız: /kayit_alici\n" +
-            "Satıcıysanız: /kayit_satici BMW AUDI");
-    }
-
-    private async Task HandleRegisterBuyerAsync(long chatId, TelegramUser? telegramUser)
+    private async Task HandleRegisterBuyerAsync(long chatId, string? username)
     {
         var existing = await _userRepo.GetByIdAsync(chatId);
         if (existing is not null)
@@ -101,7 +54,7 @@ public class BotUpdateHandler
         var user = new DomainUser
         {
             Id = chatId,
-            Username = telegramUser?.Username ?? "bilinmiyor",
+            Username = username ?? "bilinmiyor",
             Role = UserRole.Buyer
         };
 
@@ -109,7 +62,7 @@ public class BotUpdateHandler
         await _botClient.SendMessage(chatId, "✅ Alıcı olarak kaydoldunuz.");
     }
 
-    private async Task HandleRegisterSellerAsync(long chatId, string[] args, TelegramUser? telegramUser)
+    private async Task HandleRegisterSellerAsync(long chatId, string[] args, string? username)
     {
         if (args.Length < 2)
         {
@@ -131,7 +84,7 @@ public class BotUpdateHandler
         var user = new DomainUser
         {
             Id = chatId,
-            Username = telegramUser?.Username ?? "bilinmiyor",
+            Username = username ?? "bilinmiyor",
             Role = UserRole.Seller,
             BrandExpertise = brands
         };
@@ -173,12 +126,24 @@ public class BotUpdateHandler
         };
 
         await _requestRepo.AddAsync(request);
+
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+    new[]
+    {
+        InlineKeyboardButton.WithCallbackData(
+            "📋 Teklifleri Gör",
+            $"teklifler:{request.Id}")
+    }
+});
+
         await _botClient.SendMessage(chatId,
             $"✅ Talebiniz oluşturuldu!\n" +
             $"Araç: {brand}\n" +
             $"Parça: {partName}\n" +
             $"Talep No: {request.Id}\n\n" +
-            $"İlgili tedarikçiler bilgilendiriliyor...");
+            $"İlgili tedarikçiler bilgilendiriliyor...",
+            replyMarkup: keyboard);
 
         await _matchmaking.BroadcastRequestAsync(request.Id);
     }
@@ -265,11 +230,11 @@ public class BotUpdateHandler
             return;
         }
 
-        if (request.BuyerId != chatId)
-        {
-            await _botClient.SendMessage(chatId, "❌ Bu talep size ait değil.");
-            return;
-        }
+        //if (request.BuyerId != chatId)
+        //{
+        //    await _botClient.SendMessage(chatId, "❌ Bu talep size ait değil.");
+        //    return;
+        //}
 
         if (!request.Offers.Any())
         {
@@ -294,7 +259,20 @@ public class BotUpdateHandler
             i++;
         }
 
-        await _botClient.SendMessage(chatId, sb.ToString());
+        var buttons = request.Offers.Select(offer =>
+     new[]
+     {
+        InlineKeyboardButton.WithCallbackData(
+            $"✅ {offer.Price:C}",
+            $"k:{offer.Id.ToString().Replace("-", "")[..16]}"),
+        InlineKeyboardButton.WithCallbackData(
+            $"❌ Reddet",
+            $"r:{offer.Id.ToString().Replace("-", "")[..16]}")
+     }
+ ).ToArray();
+
+        var keyboard = new InlineKeyboardMarkup(buttons);
+        await _botClient.SendMessage(chatId, sb.ToString(), replyMarkup: keyboard);
     }
 
     private async Task HandleAcceptOfferAsync(long chatId, string[] args)
@@ -359,5 +337,72 @@ public class BotUpdateHandler
             $"Parça: {request.PartName}\n" +
             $"Fiyat: {offer.Price:C}\n\n" +
             $"Alıcı ile iletişime geçin.");
+    }
+
+    
+
+    public async Task HandleMessageAsync(long chatId, string text, string? username, string firstName)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        var args = text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var command = args[0].ToLower();
+
+        switch (command)
+        {
+            case "/start":
+                await _botClient.SendMessage(chatId,
+                    "👋 WinPin'e hoş geldiniz!\n\n" +
+                    "Alıcıysanız: /kayit_alici\n" +
+                    "Satıcıysanız: /kayit_satici BMW AUDI");
+                break;
+            case "/kayit_alici":
+                await HandleRegisterBuyerAsync(chatId, username);
+                break;
+            case "/kayit_satici":
+                await HandleRegisterSellerAsync(chatId, args, username);
+                break;
+            case "/talep":
+                await HandlePartRequestAsync(chatId, args);
+                break;
+            case "/teklif":
+                await HandleOfferAsync(chatId, args);
+                break;
+            case "/teklifler":
+                await HandleListOffersAsync(chatId, args);
+                break;
+            case "/kabul":
+                await HandleAcceptOfferAsync(chatId, args);
+                break;
+            default:
+                await _botClient.SendMessage(chatId,
+                    "Geçersiz komut. Kullanılabilir komutlar:\n" +
+                    "/kayit_alici — Alıcı olarak kaydol\n" +
+                    "/kayit_satici [MARKA1] [MARKA2] — Satıcı olarak kaydol\n" +
+                    "/talep [VIN] [PARÇA_ADI] — Parça talebi oluştur\n" +
+                    "/teklif [TALEP_ID] [FİYAT] [STOK] — Teklif ver");
+                break;
+        }
+    }
+
+    public async Task HandleCallbackAsync(long chatId, string data, string callbackId)
+    {
+        var parts = data.Split(':');
+
+        switch (parts[0])
+        {
+            case "teklifler":
+                await HandleListOffersAsync(chatId, new[] { "/teklifler", parts[1] });
+                break;
+            case "kabul":
+                await HandleAcceptOfferAsync(chatId, new[] { "/kabul", parts[1], parts[2] });
+                break;
+            case "reddet":
+                await _botClient.SendMessage(chatId,
+                    "❌ Teklif reddedildi.");
+                break;
+        }
+
+        try { await _botClient.AnswerCallbackQuery(callbackId); } catch { }
     }
 }
