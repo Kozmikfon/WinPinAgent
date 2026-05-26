@@ -19,5 +19,6 @@ namespace WinPinAgent.Domain.Entities
 
         public long SellerId { get; set; }
         public User Seller { get; set; } = null!;
+        public Rating? Rating { get; set; }
     }
 }

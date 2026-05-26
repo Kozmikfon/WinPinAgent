@@ -17,5 +17,9 @@ namespace WinPinAgent.Domain.Entities
 
         public ICollection<PartRequest> Requests { get; set; } = new List<PartRequest>();
         public ICollection<Offer> Offers { get; set; } = new List<Offer>();
+        public ICollection<Rating> GivenRatings { get; set; } = new List<Rating>();
+        public ICollection<Rating> ReceivedRatings { get; set; } = new List<Rating>();
+        public double AverageRating { get; set; } = 0;
+        public int TotalRatings { get; set; } = 0;
     }
 }

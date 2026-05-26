@@ -23,6 +23,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPartRequestRepository, PartRequestRepository>();
 builder.Services.AddScoped<IOfferRepository, OfferRepository>();
+builder.Services.AddScoped<IRatingRepository, RatingRepository>();
 
 // --- Services ---
 builder.Services.AddScoped<IVinParserService, VinParserService>();

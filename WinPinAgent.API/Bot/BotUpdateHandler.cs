@@ -22,6 +22,7 @@ public class BotUpdateHandler
     private readonly IPartRequestRepository _requestRepo;
     private readonly  IOfferRepository _offerRepo;
     private readonly IStatisticsService _statisticsService;
+    private readonly IRatingRepository _ratingRepo;
 
     public BotUpdateHandler(
         ITelegramBotClient botClient,
@@ -30,7 +31,8 @@ public class BotUpdateHandler
         IUserRepository userRepo,
         IPartRequestRepository requestRepo,
         IOfferRepository offerRepo,
-        IStatisticsService statisticsService)
+        IStatisticsService statisticsService,
+        IRatingRepository ratingRepo)
     {
         _botClient = botClient;
         _vinParser = vinParser;
@@ -39,6 +41,7 @@ public class BotUpdateHandler
         _requestRepo = requestRepo;
         _offerRepo = offerRepo;
         _statisticsService = statisticsService;
+        _ratingRepo = ratingRepo;
     }
 
 
@@ -340,6 +343,24 @@ public class BotUpdateHandler
             $"Parça: {request.PartName}\n" +
             $"Fiyat: {offer.Price:C}\n\n" +
             $"Alıcı ile iletişime geçin.");
+
+        // Puanlama butonları
+        var ratingKeyboard = new InlineKeyboardMarkup(new[]
+        {
+    new[]
+    {
+        InlineKeyboardButton.WithCallbackData("⭐ 1", $"puan:1:{offer.Id}"),
+        InlineKeyboardButton.WithCallbackData("⭐ 2", $"puan:2:{offer.Id}"),
+        InlineKeyboardButton.WithCallbackData("⭐ 3", $"puan:3:{offer.Id}"),
+        InlineKeyboardButton.WithCallbackData("⭐ 4", $"puan:4:{offer.Id}"),
+        InlineKeyboardButton.WithCallbackData("⭐ 5", $"puan:5:{offer.Id}")
+    }
+});
+
+        await _botClient.SendMessage(chatId,
+            $"🌟 Tedarikçiyi puanlamak ister misiniz?",
+            replyMarkup: ratingKeyboard);
+
     }
 
     
@@ -416,6 +437,52 @@ public class BotUpdateHandler
 
             case "r":
                 await _botClient.SendMessage(chatId, "❌ Teklif reddedildi.");
+                break;
+
+            case "puan":
+                var score = int.Parse(parts[1]);
+                var ratedOfferId = Guid.Parse(parts[2]);
+
+                var alreadyRated = await _ratingRepo.ExistsForOfferAsync(ratedOfferId);
+                if (alreadyRated)
+                {
+                    await _botClient.SendMessage(chatId, "⚠️ Bu teklif için zaten puan verdiniz.");
+                    break;
+                }
+
+                var ratedOffer = await _offerRepo.GetByIdAsync(ratedOfferId);
+                if (ratedOffer is null)
+                {
+                    await _botClient.SendMessage(chatId, "❌ Teklif bulunamadı.");
+                    break;
+                }
+
+                var rating = new WinPinAgent.Domain.Entities.Rating
+                {
+                    Score = score,
+                    RaterId = chatId,
+                    RatedUserId = ratedOffer.SellerId,
+                    OfferId = ratedOfferId
+                };
+
+                await _ratingRepo.AddAsync(rating);
+
+                // Satıcının ortalama puanını güncelle
+                var seller = await _userRepo.GetByIdAsync(ratedOffer.SellerId);
+                if (seller is not null)
+                {
+                    seller.AverageRating = await _ratingRepo.GetAverageForUserAsync(ratedOffer.SellerId);
+                    seller.TotalRatings = await _ratingRepo.GetTotalForUserAsync(ratedOffer.SellerId);
+                    await _userRepo.UpdateAsync(seller);
+                }
+
+                var stars = new string('⭐', score);
+                await _botClient.SendMessage(chatId,
+                    $"✅ Puanınız kaydedildi!\n{stars} ({score}/5)");
+
+                await _botClient.SendMessage(ratedOffer.SellerId,
+                    $"🌟 Yeni bir değerlendirme aldınız!\n" +
+                    $"{stars} ({score}/5)");
                 break;
         }
 

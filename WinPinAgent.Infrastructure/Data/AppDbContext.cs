@@ -16,12 +16,14 @@ namespace WinPinAgent.Infrastructure.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<PartRequest> PartRequests => Set<PartRequest>();
         public DbSet<Offer> Offers => Set<Offer>();
+        public DbSet<Rating> Ratings => Set<Rating>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfiguration(new PartRequestConfiguration());
             modelBuilder.ApplyConfiguration(new OfferConfiguration());
+            modelBuilder.ApplyConfiguration(new RatingConfiguration());
         }
     }
 }
