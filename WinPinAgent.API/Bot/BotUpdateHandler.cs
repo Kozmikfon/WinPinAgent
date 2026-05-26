@@ -245,35 +245,35 @@ public class BotUpdateHandler
             return;
         }
 
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"📋 Teklifler — {request.PartName} ({request.Brand})");
-        sb.AppendLine($"Durum: {request.Status}\n");
+        await _botClient.SendMessage(chatId,
+            $"📋 Teklifler — {request.PartName} ({request.Brand})\n" +
+            $"Durum: {request.Status} | {request.Offers.Count()} teklif");
 
         int i = 1;
         foreach (var offer in request.Offers)
         {
-            sb.AppendLine($"{i}. Teklif");
-            sb.AppendLine($"   Fiyat: {offer.Price:C}");
-            sb.AppendLine($"   Stok: {offer.StockStatus}");
-            sb.AppendLine($"   Kabul için: /kabul {requestId} {offer.Id}\n");
+            var offerKeyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData(
+                        $"✅ Kabul Et",
+                        $"k:{offer.Id}"),
+                    InlineKeyboardButton.WithCallbackData(
+                        $"❌ Reddet",
+                        $"r:{offer.Id}")
+                }
+            });
+
+            await _botClient.SendMessage(chatId,
+                $"{i}. Teklif\n" +
+                $"Fiyat: {offer.Price:C}\n" +
+                $"Stok: {offer.StockStatus}",
+                replyMarkup: offerKeyboard);
             i++;
         }
-
-        var buttons = request.Offers.Select(offer =>
-     new[]
-     {
-        InlineKeyboardButton.WithCallbackData(
-            $"✅ {offer.Price:C}",
-            $"k:{offer.Id.ToString().Replace("-", "")[..16]}"),
-        InlineKeyboardButton.WithCallbackData(
-            $"❌ Reddet",
-            $"r:{offer.Id.ToString().Replace("-", "")[..16]}")
-     }
- ).ToArray();
-
-        var keyboard = new InlineKeyboardMarkup(buttons);
-        await _botClient.SendMessage(chatId, sb.ToString(), replyMarkup: keyboard);
     }
+
 
     private async Task HandleAcceptOfferAsync(long chatId, string[] args)
     {
@@ -394,12 +394,21 @@ public class BotUpdateHandler
             case "teklifler":
                 await HandleListOffersAsync(chatId, new[] { "/teklifler", parts[1] });
                 break;
-            case "kabul":
-                await HandleAcceptOfferAsync(chatId, new[] { "/kabul", parts[1], parts[2] });
+
+            case "k":
+                var offerId = Guid.Parse(parts[1]);
+                var foundOffer = await _offerRepo.GetByIdAsync(offerId);
+                if (foundOffer is null)
+                {
+                    await _botClient.SendMessage(chatId, "❌ Teklif bulunamadı.");
+                    break;
+                }
+                await HandleAcceptOfferAsync(chatId,
+                    new[] { "/kabul", foundOffer.PartRequestId.ToString(), foundOffer.Id.ToString() });
                 break;
-            case "reddet":
-                await _botClient.SendMessage(chatId,
-                    "❌ Teklif reddedildi.");
+
+            case "r":
+                await _botClient.SendMessage(chatId, "❌ Teklif reddedildi.");
                 break;
         }
 

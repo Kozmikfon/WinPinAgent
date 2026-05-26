@@ -11,5 +11,6 @@ namespace WinPinAgent.Domain.Interfaces
     {
         Task AddAsync(Offer offer);
         Task<IEnumerable<Offer>> GetByRequestIdAsync(Guid requestId);
+        Task<Offer?> GetByIdAsync(Guid id);
     }
 }

@@ -20,6 +20,11 @@ public class OfferRepository : IOfferRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<Offer?> GetByIdAsync(Guid id)
+    => await _context.Offers
+        .Include(o => o.PartRequest)
+        .FirstOrDefaultAsync(o => o.Id == id);
+
     public async Task<IEnumerable<Offer>> GetByRequestIdAsync(Guid requestId)
         => await _context.Offers
             .Include(o => o.Seller)
