@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using WinPinAgent.Domain.Entities;
+using WinPinAgent.Domain.Enums;
 
 namespace WinPinAgent.Domain.Interfaces
 {
@@ -13,6 +14,10 @@ namespace WinPinAgent.Domain.Interfaces
         Task AddAsync(PartRequest request);
         Task UpdateAsync(PartRequest request);
         Task<IEnumerable<PartRequest>> GetExpiredRequestsAsync();
+        Task<int> GetTotalCountAsync();
+        Task<int> GetCountByStatusAsync(RequestStatus status);
+        Task<Dictionary<string, int>> GetTopBrandsAsync(int top = 5);
+        Task<double> GetAverageResponseTimeInMinutesAsync();
 
     }
 }

@@ -34,4 +34,10 @@ public class UserRepository : IUserRepository
     => await _context.Users
         .Where(u => u.BrandExpertise.Contains(brand))
         .ToListAsync();
+
+    public async Task<int> GetTotalCountAsync()
+     => await _context.Users.CountAsync();
+
+    public async Task<int> GetCountByRoleAsync(UserRole role)
+    => await _context.Users.CountAsync(u => u.Role == role);
 }

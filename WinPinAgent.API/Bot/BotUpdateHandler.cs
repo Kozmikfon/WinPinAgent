@@ -21,6 +21,7 @@ public class BotUpdateHandler
     private readonly IUserRepository _userRepo;
     private readonly IPartRequestRepository _requestRepo;
     private readonly  IOfferRepository _offerRepo;
+    private readonly IStatisticsService _statisticsService;
 
     public BotUpdateHandler(
         ITelegramBotClient botClient,
@@ -28,7 +29,8 @@ public class BotUpdateHandler
         IMatchmakingService matchmaking,
         IUserRepository userRepo,
         IPartRequestRepository requestRepo,
-        IOfferRepository offerRepo)
+        IOfferRepository offerRepo,
+        IStatisticsService statisticsService)
     {
         _botClient = botClient;
         _vinParser = vinParser;
@@ -36,11 +38,12 @@ public class BotUpdateHandler
         _userRepo = userRepo;
         _requestRepo = requestRepo;
         _offerRepo = offerRepo;
+        _statisticsService = statisticsService;
     }
 
-    
 
-    
+
+
 
     private async Task HandleRegisterBuyerAsync(long chatId, string? username)
     {
@@ -373,6 +376,10 @@ public class BotUpdateHandler
                 break;
             case "/kabul":
                 await HandleAcceptOfferAsync(chatId, args);
+                break;
+            case "/istatistik":
+                var dashboard = await _statisticsService.GetDashboardTextAsync();
+                await _botClient.SendMessage(chatId, dashboard);
                 break;
             default:
                 await _botClient.SendMessage(chatId,

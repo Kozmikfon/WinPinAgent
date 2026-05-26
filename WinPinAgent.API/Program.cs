@@ -28,6 +28,7 @@ builder.Services.AddScoped<IOfferRepository, OfferRepository>();
 builder.Services.AddScoped<IVinParserService, VinParserService>();
 builder.Services.AddScoped<IMatchmakingService, MatchmakingService>();
 builder.Services.AddScoped<ITelegramNotificationService, TelegramNotificationService>();
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 
 builder.Services.AddHostedService<WinPinAgent.API.BackgroundServices.RequestExpiryService>();
 // --- Bot Update Handler ---
