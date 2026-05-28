@@ -74,4 +74,20 @@ public class PartRequestRepository : IPartRequestRepository
             .Average(r => (r.AcceptedAt!.Value - r.CreatedAt).TotalMinutes);
     }
 
+    public async Task<IEnumerable<PartRequest>> GetActiveByBrandAsync(string brand)
+    => await _context.PartRequests
+        .Where(r => r.Brand == brand
+            && r.Status != RequestStatus.Accepted
+            && r.Status != RequestStatus.Closed
+            && r.Status != RequestStatus.Expired)
+        .OrderByDescending(r => r.CreatedAt)
+        .Take(10)
+        .ToListAsync();
+
+    public async Task<IEnumerable<PartRequest>> GetByBuyerIdAsync(long buyerId)
+        => await _context.PartRequests
+            .Where(r => r.BuyerId == buyerId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(10)
+            .ToListAsync();
 }

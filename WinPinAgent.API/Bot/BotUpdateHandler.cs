@@ -406,6 +406,14 @@ public class BotUpdateHandler
                 await HandleProfileAsync(chatId);
                 break;
 
+            case "/aktif_talepler":
+                await HandleActiveRequestsAsync(chatId);
+                break;
+
+            case "/gecmis_taleplerim":
+                await HandleMyRequestsAsync(chatId);
+                break;
+
             default:
                 await _botClient.SendMessage(chatId,
                     "Geçersiz komut. Kullanılabilir komutlar:\n" +
@@ -519,5 +527,83 @@ public class BotUpdateHandler
             $"Marka Uzmanlığı: {brands}\n" +
             $"Puan: {ratingText}\n" +
             $"Kayıt: {user.CreatedAt:dd.MM.yyyy}");
+    }
+
+    private async Task HandleActiveRequestsAsync(long chatId)
+    {
+        var user = await _userRepo.GetByIdAsync(chatId);
+        if (user is null)
+        {
+            await _botClient.SendMessage(chatId, "❌ Önce kayıt olmanız gerekiyor.");
+            return;
+        }
+
+        if (!user.BrandExpertise.Any())
+        {
+            await _botClient.SendMessage(chatId,
+                "⚠️ Marka uzmanlığınız belirtilmemiş.\n/kayit_satici BMW AUDI şeklinde güncelleyin.");
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("🔍 Uzmanlık alanınızdaki aktif talepler:\n");
+
+        bool found = false;
+        foreach (var brand in user.BrandExpertise)
+        {
+            var requests = await _requestRepo.GetActiveByBrandAsync(brand);
+            var list = requests.ToList();
+            if (!list.Any()) continue;
+
+            found = true;
+            sb.AppendLine($"🚗 {brand}");
+            foreach (var r in list)
+            {
+                sb.AppendLine($"  • {r.PartName}");
+                sb.AppendLine($"    VIN: {r.Vin}");
+                sb.AppendLine($"    Teklif: /teklif {r.Id} [fiyat] [stok]\n");
+            }
+        }
+
+        if (!found)
+        {
+            await _botClient.SendMessage(chatId, "📭 Şu an aktif talep bulunmuyor.");
+            return;
+        }
+
+        await _botClient.SendMessage(chatId, sb.ToString());
+    }
+
+    private async Task HandleMyRequestsAsync(long chatId)
+    {
+        var requests = await _requestRepo.GetByBuyerIdAsync(chatId);
+        var list = requests.ToList();
+
+        if (!list.Any())
+        {
+            await _botClient.SendMessage(chatId, "📭 Henüz hiç talep oluşturmadınız.");
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("📋 Son talepleriniz:\n");
+
+        foreach (var r in list)
+        {
+            var statusIcon = r.Status switch
+            {
+                RequestStatus.Accepted => "✅",
+                RequestStatus.Expired => "⏰",
+                RequestStatus.Broadcasted => "📡",
+                RequestStatus.OfferReceived => "💬",
+                _ => "⏳"
+            };
+
+            sb.AppendLine($"{statusIcon} {r.PartName} ({r.Brand})");
+            sb.AppendLine($"   Durum: {r.Status}");
+            sb.AppendLine($"   Tarih: {r.CreatedAt:dd.MM.yyyy HH:mm}\n");
+        }
+
+        await _botClient.SendMessage(chatId, sb.ToString());
     }
 }

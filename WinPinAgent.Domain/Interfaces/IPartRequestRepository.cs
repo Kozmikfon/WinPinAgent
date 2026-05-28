@@ -19,5 +19,8 @@ namespace WinPinAgent.Domain.Interfaces
         Task<Dictionary<string, int>> GetTopBrandsAsync(int top = 5);
         Task<double> GetAverageResponseTimeInMinutesAsync();
 
+        Task<IEnumerable<PartRequest>> GetActiveByBrandAsync(string brand);
+        Task<IEnumerable<PartRequest>> GetByBuyerIdAsync(long buyerId); 
+
     }
 }
