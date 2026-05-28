@@ -402,6 +402,10 @@ public class BotUpdateHandler
                 var dashboard = await _statisticsService.GetDashboardTextAsync();
                 await _botClient.SendMessage(chatId, dashboard);
                 break;
+            case "/profil":
+                await HandleProfileAsync(chatId);
+                break;
+
             default:
                 await _botClient.SendMessage(chatId,
                     "Geçersiz komut. Kullanılabilir komutlar:\n" +
@@ -487,5 +491,33 @@ public class BotUpdateHandler
         }
 
         try { await _botClient.AnswerCallbackQuery(callbackId); } catch { }
+    }
+    private async Task HandleProfileAsync(long chatId)
+    {
+        var user = await _userRepo.GetByIdAsync(chatId);
+        if (user is null)
+        {
+            await _botClient.SendMessage(chatId,
+                "❌ Kayıtlı değilsiniz.\n/kayit_alici veya /kayit_satici ile kaydolun.");
+            return;
+        }
+
+        var role = user.Role == UserRole.Buyer ? "Alıcı" : "Satıcı";
+        var brands = user.BrandExpertise.Any()
+            ? string.Join(", ", user.BrandExpertise)
+            : "Belirtilmemiş";
+
+        var ratingText = user.TotalRatings > 0
+            ? $"{user.AverageRating:F1}⭐ ({user.TotalRatings} değerlendirme)"
+            : "Henüz değerlendirme yok";
+
+        await _botClient.SendMessage(chatId,
+            $"👤 Profiliniz\n" +
+            $"{'─',20}\n" +
+            $"Kullanıcı: @{user.Username}\n" +
+            $"Rol: {role}\n" +
+            $"Marka Uzmanlığı: {brands}\n" +
+            $"Puan: {ratingText}\n" +
+            $"Kayıt: {user.CreatedAt:dd.MM.yyyy}");
     }
 }
