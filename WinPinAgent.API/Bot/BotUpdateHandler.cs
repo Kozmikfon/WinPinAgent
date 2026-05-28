@@ -413,6 +413,9 @@ public class BotUpdateHandler
             case "/gecmis_taleplerim":
                 await HandleMyRequestsAsync(chatId);
                 break;
+            case "/yenile":
+                await HandleRenewRequestAsync(chatId, args);
+                break;
 
             default:
                 await _botClient.SendMessage(chatId,
@@ -605,5 +608,91 @@ public class BotUpdateHandler
         }
 
         await _botClient.SendMessage(chatId, sb.ToString());
+    }
+
+    private async Task HandleRenewRequestAsync(long chatId, string[] args)
+    {
+        if (args.Length < 2)
+        {
+            // Talep ID verilmemişse süresi dolmuş talepleri listele
+            var expired = await _requestRepo.GetExpiredByBuyerIdAsync(chatId);
+            var list = expired.ToList();
+
+            if (!list.Any())
+            {
+                await _botClient.SendMessage(chatId, "📭 Yenilenebilecek süresi dolmuş talep yok.");
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("⏰ Süresi dolan talepleriniz:\n");
+
+            foreach (var r in list)
+            {
+                sb.AppendLine($"• {r.PartName} ({r.Brand})");
+                sb.AppendLine($"  Yenilemek için: /yenile {r.Id}\n");
+            }
+
+            await _botClient.SendMessage(chatId, sb.ToString());
+            return;
+        }
+
+        if (!Guid.TryParse(args[1], out var requestId))
+        {
+            await _botClient.SendMessage(chatId, "❌ Geçersiz talep ID.");
+            return;
+        }
+
+        var request = await _requestRepo.GetByIdAsync(requestId);
+        if (request is null)
+        {
+            await _botClient.SendMessage(chatId, "❌ Talep bulunamadı.");
+            return;
+        }
+
+        if (request.BuyerId != chatId)
+        {
+            await _botClient.SendMessage(chatId, "❌ Bu talep size ait değil.");
+            return;
+        }
+
+        if (request.Status != RequestStatus.Expired)
+        {
+            await _botClient.SendMessage(chatId, "⚠️ Sadece süresi dolmuş talepler yenilenebilir.");
+            return;
+        }
+
+        // Yeni talep oluştur
+        var newRequest = new PartRequest
+        {
+            Vin = request.Vin,
+            Brand = request.Brand,
+            PartName = request.PartName,
+            BuyerId = chatId,
+            Status = RequestStatus.Pending,
+            ExpiresAt = DateTime.UtcNow.AddHours(24)
+        };
+
+        await _requestRepo.AddAsync(newRequest);
+
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "📋 Teklifleri Gör",
+                $"teklifler:{newRequest.Id}")
+        }
+    });
+
+        await _botClient.SendMessage(chatId,
+            $"✅ Talep yenilendi!\n" +
+            $"Araç: {newRequest.Brand}\n" +
+            $"Parça: {newRequest.PartName}\n" +
+            $"Talep No: {newRequest.Id}\n\n" +
+            $"İlgili tedarikçiler bilgilendiriliyor...",
+            replyMarkup: keyboard);
+
+        await _matchmaking.BroadcastRequestAsync(newRequest.Id);
     }
 }

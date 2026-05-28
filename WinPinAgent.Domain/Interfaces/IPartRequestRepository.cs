@@ -20,7 +20,8 @@ namespace WinPinAgent.Domain.Interfaces
         Task<double> GetAverageResponseTimeInMinutesAsync();
 
         Task<IEnumerable<PartRequest>> GetActiveByBrandAsync(string brand);
-        Task<IEnumerable<PartRequest>> GetByBuyerIdAsync(long buyerId); 
+        Task<IEnumerable<PartRequest>> GetByBuyerIdAsync(long buyerId);
+        Task<IEnumerable<PartRequest>> GetExpiredByBuyerIdAsync(long buyerId);
 
     }
 }

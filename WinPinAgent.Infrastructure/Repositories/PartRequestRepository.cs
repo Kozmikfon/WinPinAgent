@@ -90,4 +90,11 @@ public class PartRequestRepository : IPartRequestRepository
             .OrderByDescending(r => r.CreatedAt)
             .Take(10)
             .ToListAsync();
+
+    public async Task<IEnumerable<PartRequest>> GetExpiredByBuyerIdAsync(long buyerId)
+    => await _context.PartRequests
+        .Where(r => r.BuyerId == buyerId && r.Status == RequestStatus.Expired)
+        .OrderByDescending(r => r.CreatedAt)
+        .Take(5)
+        .ToListAsync();
 }
