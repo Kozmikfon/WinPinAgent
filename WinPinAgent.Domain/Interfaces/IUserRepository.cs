@@ -16,5 +16,6 @@ namespace WinPinAgent.Domain.Interfaces
         Task<IEnumerable<User>> GetSellersByBrandAsync(string brand);
         Task<int> GetTotalCountAsync();
         Task<int> GetCountByRoleAsync(UserRole role);
+        Task<IEnumerable<User>> GetTopRatedSellersAsync(int top = 3);
     }
 }

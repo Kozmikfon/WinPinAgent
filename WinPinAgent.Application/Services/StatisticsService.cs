@@ -30,6 +30,7 @@ public class StatisticsService : IStatisticsService
         var totalUsers = await _userRepo.GetTotalCountAsync();
         var totalBuyers = await _userRepo.GetCountByRoleAsync(UserRole.Buyer);
         var totalSellers = await _userRepo.GetCountByRoleAsync(UserRole.Seller);
+        var topSellers = await _userRepo.GetTopRatedSellersAsync(3);
 
         var brandsText = topBrands.Any()
             ? string.Join("\n", topBrands.Select((b, i) => $"   {i + 1}. {b.Key} — {b.Value} talep"))
@@ -38,6 +39,11 @@ public class StatisticsService : IStatisticsService
         var avgText = avgResponse > 0
             ? $"{avgResponse:F1} dakika"
             : "Henüz veri yok";
+
+        var sellersText = topSellers.Any()
+            ? string.Join("\n", topSellers.Select((s, i) =>
+                $"   {i + 1}. @{s.Username} — {s.AverageRating:F1}⭐ ({s.TotalRatings} değerlendirme)"))
+            : "   Henüz veri yok";
 
         return
             $"📊 WinPin Dashboard\n" +
@@ -53,6 +59,8 @@ public class StatisticsService : IStatisticsService
             $"   ⏰ Süresi Dolan: {expired}\n\n" +
             $"🏆 En Çok Aranan Markalar\n" +
             $"{brandsText}\n\n" +
+            $"🏅 En Yüksek Puanlı Satıcılar\n" +
+            $"{sellersText}\n\n" +
             $"⚡ Ort. Yanıt Süresi\n" +
             $"   {avgText}";
     }

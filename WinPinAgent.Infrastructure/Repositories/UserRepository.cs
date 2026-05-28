@@ -40,4 +40,11 @@ public class UserRepository : IUserRepository
 
     public async Task<int> GetCountByRoleAsync(UserRole role)
     => await _context.Users.CountAsync(u => u.Role == role);
+
+    public async Task<IEnumerable<User>> GetTopRatedSellersAsync(int top = 3)
+    => await _context.Users
+        .Where(u => u.TotalRatings > 0)
+        .OrderByDescending(u => u.AverageRating)
+        .Take(top)
+        .ToListAsync();
 }
